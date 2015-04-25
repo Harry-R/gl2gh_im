@@ -1,15 +1,21 @@
 package de.harry_r.gl2gh_im;
 
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Scanner;
 
 
 public class Migrate {
-	private static String lab_URL, lab_token;
-	private static int lab_project_id; 
+	static String lab_URL, lab_token;
+	static String charset = "UTF-8";
+	
+	static int lab_project_id; 
+	static int status = 0;
 	
 	 public static void main( String[] args ) {
 		 welcomeDialog();
-		 
+		 getIssues();
 	  }
 	 
 	 public static void welcomeDialog () {
@@ -25,4 +31,42 @@ public class Migrate {
 		lab_token = reader.next(); 
 		reader.close();
 	 }
+	 
+	// authenticate with private token
+		public static void getIssues() {
+			try {
+				// open connection
+				URLConnection connection = new URL(lab_URL + "/api/v3/projects/"
+						+ lab_project_id + "/issues" + "?" + "private_token="
+						+ lab_token).openConnection();
+				// print URL for debugging
+				System.out.println(connection);
+				connection.setRequestProperty("Accept-Charset", charset);
+				// handle HTTP status code
+				HttpURLConnection httpConnection = (HttpURLConnection) connection;
+				status = httpConnection.getResponseCode();
+				System.out.println(status);
+				switch (status) {
+					case (0): {
+						System.out.println("Connection failed!");
+						break;
+					}
+					case (200): {
+						System.out.println("OK");
+						break;
+					}
+					case (401): {
+						System.out.println("Authentication failed!");
+						break;
+					}
+					case (404): {
+						System.out.println("Requested recource not found!");
+						break;
+					}
+				}
+				//TODO: handle HTTP content
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 }
