@@ -24,7 +24,8 @@ public class Migrate {
 	static int lab_project_id;
 	static int status = 0;
 
-	static JSONArray input_json, output_json = new JSONArray();
+	static JSONArray input_json, output_json = new JSONArray(),
+			edit_json = new JSONArray();
 
 	public static void main(String[] args) throws IOException, JSONException {
 		welcomeDialog();
@@ -33,6 +34,8 @@ public class Migrate {
 		System.out.println(input_json);
 		createOutputJson();
 		createIssues();
+		createStateArray();
+		editIssues();
 	}
 
 	public static void welcomeDialog() {
@@ -150,7 +153,8 @@ public class Migrate {
 		// send each json object alone
 		for (int i = 0; i < output_json.length(); i++) {
 			// reverse to bring the issues in right order
-			JSONObject out_object = output_json.getJSONObject(output_json.length()-(i+1));
+			JSONObject out_object = output_json.getJSONObject(output_json
+					.length() - (i + 1));
 			System.out.println(out_object);
 			// content type
 			String type = "application/json";
@@ -172,6 +176,51 @@ public class Migrate {
 			// get and write output stream
 			OutputStream os = connection.getOutputStream();
 			os.write(out_object.toString().getBytes());
+			// get and print http status codes
+			status = connection.getResponseCode();
+			System.out.println(status);
+			handleHttpStatusCode(status);
+		}
+	}
+
+	private static void createStateArray() throws JSONException {
+		// create an array with number and state for editing the issues
+		for (int i = 0; i < input_json.length(); i++) {
+			JSONObject in_object = input_json.getJSONObject(i);
+			JSONObject state_object = new JSONObject();
+			state_object.put("state", in_object.get("state"));
+			edit_json.put(state_object);
+		}
+	}
+
+	private static void editIssues() throws MalformedURLException, IOException,
+			JSONException {
+		// send each json object alone
+		for (int i = 0; i < edit_json.length(); i++) {
+			// reverse to bring the issues in right order
+			JSONObject edit_object = edit_json.getJSONObject(edit_json
+					.length() - (i + 1));
+			System.out.println(edit_object);
+			// content type
+			String type = "application/json";
+			// create URL, i+1 is the issue number
+			hub_final_url = "https://api.github.com/repos/" + hub_name + "/"
+					+ hub_repo + "/issues/" + (i+1) + "?access_token=" + hub_token;
+			// create and open connection
+			HttpURLConnection connection = (HttpURLConnection) new URL(
+					hub_final_url).openConnection();
+			// print URL for debugging
+			System.out.println(connection);
+			// set connection parameters
+			connection.setRequestProperty("Accept-Charset", charset);
+			connection.setRequestProperty("Content-Type", type);
+			connection.setRequestProperty("Content-Length",
+					String.valueOf(edit_object.toString().length()));
+			connection.setDoOutput(true);
+			connection.setRequestMethod("POST");
+			// get and write output stream
+			OutputStream os = connection.getOutputStream();
+			os.write(edit_object.toString().getBytes());
 			// get and print http status codes
 			status = connection.getResponseCode();
 			System.out.println(status);
