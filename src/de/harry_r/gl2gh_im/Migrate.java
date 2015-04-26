@@ -63,6 +63,10 @@ public class Migrate {
 						System.out.println("Requested recource not found!");
 						break;
 					}
+					default: {
+						System.out.println("There was an unknown error!");
+						break;
+					}
 				}
 				//TODO: handle HTTP content
 			} catch (Exception e) {
