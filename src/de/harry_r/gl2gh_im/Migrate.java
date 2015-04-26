@@ -38,7 +38,7 @@ public class Migrate {
 	public static void welcomeDialog() {
 		// send welcome message
 		System.out.println("Welcome at GitLab to GitHub issue migrating!");
-		// read user inputs
+		// read user inputs (GitLab URL, GitLab project ID and private token)
 		Scanner reader = new Scanner(System.in);
 		System.out.println("Please enter your GitLab URL:");
 		lab_URL = reader.next();
@@ -69,28 +69,7 @@ public class Migrate {
 			HttpURLConnection httpConnection = (HttpURLConnection) connection;
 			status = httpConnection.getResponseCode();
 			System.out.println(status);
-			switch (status) {
-			case (0): {
-				System.out.println("Connection failed!");
-				break;
-			}
-			case (200): {
-				System.out.println("OK");
-				break;
-			}
-			case (401): {
-				System.out.println("Authentication failed!");
-				break;
-			}
-			case (404): {
-				System.out.println("Requested recource not found!");
-				break;
-			}
-			default: {
-				System.out.println("There was an unknown error!");
-				break;
-			}
-			}
+			handleHttpStatusCode(status);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -120,6 +99,39 @@ public class Migrate {
 			// close stream in case of exception
 			is.close();
 			System.out.println("Connection closed!");
+		}
+	}
+	
+	private static void handleHttpStatusCode(int status) {
+		switch (status) {
+		case (0): {
+			System.out.println("Connection failed!");
+			break;
+		}
+		case (200): {
+			System.out.println("OK");
+			break;
+		}
+		case (201): {
+			System.out.println("Succesfully created");
+			break;
+		}
+		case (400): {
+			System.out.println("Bad request!");
+			break;
+		}
+		case (401): {
+			System.out.println("Authentication failed!");
+			break;
+		}
+		case (404): {
+			System.out.println("Requested recource not found!");
+			break;
+		}
+		default: {
+			System.out.println("There was an unknown error!");
+			break;
+		}
 		}
 	}
 
@@ -157,6 +169,7 @@ public class Migrate {
 		// get and print http response code
 		status = connection.getResponseCode();
 		System.out.println(status);
+		handleHttpStatusCode(status);
 	}
 
 }
