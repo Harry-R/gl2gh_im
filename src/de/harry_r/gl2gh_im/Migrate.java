@@ -9,7 +9,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLEncoder;
+
 import java.util.Scanner;
 
 import org.json.JSONArray;
@@ -24,7 +24,7 @@ public class Migrate {
 	static int lab_project_id;
 	static int status = 0;
 
-	static JSONObject input_json, output_json = new JSONObject();
+	static JSONArray input_json, output_json = new JSONArray();
 
 	public static void main(String[] args) throws IOException, JSONException {
 		welcomeDialog();
@@ -32,13 +32,13 @@ public class Migrate {
 		input_json = readJson();
 		System.out.println(input_json);
 		createOutputJson();
-		performHttpPost();
+		createIssues();
 	}
 
 	public static void welcomeDialog() {
 		// send welcome message
 		System.out.println("Welcome at GitLab to GitHub issue migrating!");
-		// read user inputs (GitLab URL, GitLab project ID and private token)
+		// read user inputs
 		Scanner reader = new Scanner(System.in);
 		System.out.println("Please enter your GitLab URL:");
 		lab_URL = reader.next();
@@ -75,7 +75,7 @@ public class Migrate {
 		}
 	}
 
-	public static JSONObject readJson() throws IOException, JSONException {
+	public static JSONArray readJson() throws IOException, JSONException {
 		// open input stream
 		InputStream is = new URL(lab_final_url).openStream();
 		try {
@@ -89,11 +89,8 @@ public class Migrate {
 				sb.append((char) i);
 				j++;
 			}
-			// delete [] around the string
-			sb.deleteCharAt(0);
-			sb.deleteCharAt(sb.length() - 1);
 			// build json object from String and return
-			JSONObject json = new JSONObject(sb.toString());
+			JSONArray json = new JSONArray(sb.toString());
 			return json;
 		} finally {
 			// close stream in case of exception
@@ -101,7 +98,7 @@ public class Migrate {
 			System.out.println("Connection closed!");
 		}
 	}
-	
+
 	private static void handleHttpStatusCode(int status) {
 		switch (status) {
 		case (0): {
@@ -136,40 +133,50 @@ public class Migrate {
 	}
 
 	private static void createOutputJson() throws JSONException {
-		// add relevant parameters to output_json
-		output_json.put("milestone", input_json.get("milestone"));
-		output_json.put("title", input_json.get("title"));
-		output_json.put("body", input_json.get("description"));
-		output_json.put("labels", input_json.get("labels"));
-		System.out.print(output_json);
+		// add relevant parameters output_json
+		for (int i = 0; i < input_json.length(); i++) {
+			JSONObject in_object = input_json.getJSONObject(i);
+			JSONObject out_object = new JSONObject();
+			out_object.put("milestone", in_object.get("milestone"));
+			out_object.put("title", in_object.get("title"));
+			out_object.put("body", in_object.get("description"));
+			out_object.put("labels", in_object.get("labels"));
+			output_json.put(out_object);
+		}
 	}
 
-	private static void performHttpPost() throws MalformedURLException,
-			IOException {
-		// content type
-		String type = "application/json";
-		// create URL
-		hub_final_url = "https://api.github.com/repos/" + hub_name + "/" + hub_repo
-				+ "/issues" + "?access_token=" + hub_token;
-		//create and open connection
-		HttpURLConnection connection = (HttpURLConnection) new URL(
-				hub_final_url).openConnection();
-		// print URL for debugging
-		System.out.println(connection);
-		// set connection parameters
-		connection.setRequestProperty("Accept-Charset", charset);
-		connection.setRequestProperty("Content-Type", type);
-		connection.setRequestProperty("Content-Length",
-				String.valueOf(output_json.toString().length()));
-		connection.setDoOutput(true);
-		connection.setRequestMethod("POST");
-		// get and write output stream
-		OutputStream os = connection.getOutputStream();
-		os.write(output_json.toString().getBytes());
-		// get and print http response code
-		status = connection.getResponseCode();
-		System.out.println(status);
-		handleHttpStatusCode(status);
+	private static void createIssues() throws MalformedURLException,
+			IOException, JSONException {
+		// send each json object alone
+		for (int i = 0; i < output_json.length(); i++) {
+			// reverse to bring the issues in right order
+			JSONObject out_object = output_json.getJSONObject(output_json.length()-(i+1));
+			System.out.println(out_object);
+			// content type
+			String type = "application/json";
+			// create URL
+			hub_final_url = "https://api.github.com/repos/" + hub_name + "/"
+					+ hub_repo + "/issues" + "?access_token=" + hub_token;
+			// create and open connection
+			HttpURLConnection connection = (HttpURLConnection) new URL(
+					hub_final_url).openConnection();
+			// print URL for debugging
+			System.out.println(connection);
+			// set connection parameters
+			connection.setRequestProperty("Accept-Charset", charset);
+			connection.setRequestProperty("Content-Type", type);
+			connection.setRequestProperty("Content-Length",
+					String.valueOf(out_object.toString().length()));
+			connection.setDoOutput(true);
+			connection.setRequestMethod("POST");
+			// get and write output stream
+			OutputStream os = connection.getOutputStream();
+			os.write(out_object.toString().getBytes());
+			// get and print http status codes
+			status = connection.getResponseCode();
+			System.out.println(status);
+			handleHttpStatusCode(status);
+		}
 	}
 
 }
