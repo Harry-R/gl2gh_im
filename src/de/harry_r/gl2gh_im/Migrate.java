@@ -18,11 +18,13 @@ import org.json.JSONObject;
 
 public class Migrate {
 	static String lab_URL, lab_token, lab_final_url, hub_url, hub_name,
-			hub_repo, hub_token, hub_final_url;
+			hub_repo, hub_token, hub_final_url, author_name;
 	static String charset = "UTF-8";
 
 	static int lab_project_id;
 	static int status = 0;
+
+	static boolean time_and_name;
 
 	static JSONArray input_json, output_json = new JSONArray(),
 			edit_json = new JSONArray();
@@ -33,6 +35,9 @@ public class Migrate {
 		input_json = readJson();
 		System.out.println(input_json);
 		createOutputJson();
+		if (time_and_name) {
+			addTimeName();
+		}
 		createIssues();
 		createStateArray();
 		editIssues();
@@ -53,8 +58,25 @@ public class Migrate {
 		hub_name = reader.next();
 		System.out.println("Please enter your GitHub repo:");
 		hub_repo = reader.next();
-		System.out.println("Please enter your GitHub API Autentication token:");
+		System.out.println("Please enter your GitHub API autentication token:");
 		hub_token = reader.next();
+		System.out
+				.println("Do you want to write originally creator's name and timestamp into the description? If not, they will be lost! (y/n)");
+		String input = "42";
+		// read input until user does a correct input
+		while (!input.equals("y") && !input.equals("n")) {
+			input = reader.next();
+		}
+		switch (input) {
+		case ("y"): {
+			time_and_name = true;
+			break;
+		}
+		case ("n"): {
+			time_and_name = false;
+			break;
+		}
+		}
 		reader.close();
 	}
 
@@ -148,6 +170,22 @@ public class Migrate {
 		}
 	}
 
+	private static void addTimeName() throws JSONException {
+		for (int i = 0; i < input_json.length(); i++) {
+			// get author name
+			String author_name = (String) input_json.getJSONObject(i)
+					.getJSONObject("author").get("name");
+			// get description, add data
+			String description_string = output_json.getJSONObject(i)
+					.get("body")
+					+ " - This issue was migrated from GitLab. Original author is "
+					+ author_name
+					+ ". It was created on "
+					+ input_json.getJSONObject(i).get("created_at") + ".";
+			output_json.getJSONObject(i).put("body", description_string);
+		}
+	}
+
 	private static void createIssues() throws MalformedURLException,
 			IOException, JSONException {
 		// send each json object alone
@@ -198,14 +236,15 @@ public class Migrate {
 		// send each json object alone
 		for (int i = 0; i < edit_json.length(); i++) {
 			// reverse to bring the issues in right order
-			JSONObject edit_object = edit_json.getJSONObject(edit_json
-					.length() - (i + 1));
+			JSONObject edit_object = edit_json.getJSONObject(edit_json.length()
+					- (i + 1));
 			System.out.println(edit_object);
 			// content type
 			String type = "application/json";
 			// create URL, i+1 is the issue number
 			hub_final_url = "https://api.github.com/repos/" + hub_name + "/"
-					+ hub_repo + "/issues/" + (i+1) + "?access_token=" + hub_token;
+					+ hub_repo + "/issues/" + (i + 1) + "?access_token="
+					+ hub_token;
 			// create and open connection
 			HttpURLConnection connection = (HttpURLConnection) new URL(
 					hub_final_url).openConnection();
@@ -227,5 +266,4 @@ public class Migrate {
 			handleHttpStatusCode(status);
 		}
 	}
-
 }
