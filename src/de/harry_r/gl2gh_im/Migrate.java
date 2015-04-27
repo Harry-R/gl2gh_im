@@ -9,7 +9,11 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Scanner;
 
 import org.json.JSONArray;
@@ -29,7 +33,7 @@ public class Migrate {
 	static JSONArray input_json, output_json = new JSONArray(),
 			edit_json = new JSONArray();
 
-	public static void main(String[] args) throws IOException, JSONException {
+	public static void main(String[] args) throws IOException, JSONException, ParseException {
 		welcomeDialog();
 		performHttpGet();
 		input_json = readJson();
@@ -170,18 +174,26 @@ public class Migrate {
 		}
 	}
 
-	private static void addTimeName() throws JSONException {
+	private static void addTimeName() throws JSONException, ParseException {
 		for (int i = 0; i < input_json.length(); i++) {
 			// get author name
 			String author_name = (String) input_json.getJSONObject(i)
 					.getJSONObject("author").get("name");
+			// get and reformat date
+			String json_date_string = input_json.getJSONObject(i).getString("created_at")
+					.replace('T', ' ').replace('Z', ' ');
+			// Format example: 2015-04-26T22:42:04.897Z  -> 2015-04-26 22:42:04.897
+			DateFormat json_format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS ", Locale.ENGLISH);
+			Date date = json_format.parse(json_date_string);
+			DateFormat out_format = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH);
+			String out_date = out_format.format(date);
 			// get description, add data
 			String description_string = output_json.getJSONObject(i)
 					.get("body")
-					+ " - This issue was migrated from GitLab. Original author is "
-					+ author_name
-					+ ". It was created on "
-					+ input_json.getJSONObject(i).get("created_at") + ".";
+					+ "\n" + "\n"
+					+ "_This issue was migrated from GitLab. Original author is " + author_name
+					+ "._\n"
+					+ "_It was originally created " + out_date + "._";
 			output_json.getJSONObject(i).put("body", description_string);
 		}
 	}
