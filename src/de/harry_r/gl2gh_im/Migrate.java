@@ -113,10 +113,9 @@ public class Migrate {
 					charset));
 			StringBuilder sb = new StringBuilder();
 			// read from input stream and append to string builder
-			int i, j = 0;
+			int i;
 			while ((i = rd.read()) >= 0) {
 				sb.append((char) i);
-				j++;
 			}
 			// build json object from String and return
 			JSONArray json = new JSONArray(sb.toString());
@@ -170,8 +169,20 @@ public class Migrate {
 			out_object.put("title", in_object.get("title"));
 			out_object.put("body", in_object.get("description"));
 			out_object.put("labels", in_object.get("labels"));
+			out_object.put("id", in_object.get("id"));
 			output_json.put(out_object);
 		}
+	}
+
+	private static String reformatDate(String in_date) throws ParseException {
+		// reformat date
+		// Format example: 2015-04-26T22:42:04.897Z -> (removed T and Z) 2015-04-26 22:42:04.897
+		DateFormat json_format = new SimpleDateFormat(
+				"yyyy-MM-dd HH:mm:ss.SSS ", Locale.ENGLISH);
+		Date date = json_format.parse(in_date.replace('T', ' ').replace('Z', ' '));
+		DateFormat out_format = new SimpleDateFormat("yyyy-MM-dd HH:mm",
+				Locale.ENGLISH);
+		return out_format.format(date);
 	}
 
 	private static void addTimeName() throws JSONException, ParseException {
@@ -180,13 +191,7 @@ public class Migrate {
 			String author_name = (String) input_json.getJSONObject(i)
 					.getJSONObject("author").get("name");
 			// get and reformat date
-			String json_date_string = input_json.getJSONObject(i).getString("created_at")
-					.replace('T', ' ').replace('Z', ' ');
-			// Format example: 2015-04-26T22:42:04.897Z  -> 2015-04-26 22:42:04.897
-			DateFormat json_format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS ", Locale.ENGLISH);
-			Date date = json_format.parse(json_date_string);
-			DateFormat out_format = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH);
-			String out_date = out_format.format(date);
+			String out_date = reformatDate(input_json.getJSONObject(i).getString("created_at"));
 			// get description, add data
 			String description_string = output_json.getJSONObject(i)
 					.get("body")
@@ -199,12 +204,15 @@ public class Migrate {
 	}
 
 	private static void createIssues() throws MalformedURLException,
-			IOException, JSONException {
+			IOException, JSONException, ParseException {
 		// send each json object alone
 		for (int i = 0; i < output_json.length(); i++) {
 			// reverse to bring the issues in right order
 			JSONObject out_object = output_json.getJSONObject(output_json
 					.length() - (i + 1));
+			// gitlab internal issue id is needed for issue comments
+			int issue_id = out_object.getInt("id");
+			out_object.remove("id");
 			System.out.println(out_object);
 			// content type
 			String type = "application/json";
@@ -230,6 +238,81 @@ public class Migrate {
 			status = connection.getResponseCode();
 			System.out.println(status);
 			handleHttpStatusCode(status);
+			// Get comments from lab an add to hub:
+			// Read returned JSON from hub (for issue number)
+			InputStream is = connection.getInputStream();
+			// create a buffered reader and String builder
+			BufferedReader rd = new BufferedReader(new InputStreamReader(is, charset));
+			StringBuilder sb = new StringBuilder();
+			// read from input stream and append to string builder
+			int k = 0;
+			while ((k = rd.read()) >= 0) {
+				sb.append((char) k);
+			}
+			JSONObject created_issue = new JSONObject(sb.toString());
+			int created_issue_id = created_issue.getInt("number");
+			createHubCommentsonIssue(created_issue_id, getLabCommentsByIssueId(issue_id));
+		}
+	}
+
+	private static void createHubCommentsonIssue(int id, JSONArray comments) throws JSONException, ParseException, MalformedURLException, IOException {
+		for (int i = 0; i < comments.length(); i++) {
+			String newcomment_string = comments.getJSONObject(i).getString("body")
+					+ "\n\n"
+					+ "_This comment was migrated from GitLab. It was originally posted on " 
+					+ reformatDate(comments.getJSONObject(i).getString("created_at"))
+					+ " by "
+					+ comments.getJSONObject(i).getJSONObject("author").getString("name") 
+					+ "._";
+			JSONObject newcomment = new JSONObject();
+			newcomment.put("body", newcomment_string);
+
+			// create URL
+			String comment_url = "https://api.github.com/repos/" + hub_name + "/"
+					+ hub_repo + "/issues/" + id + "/comments" + "?access_token=" + hub_token;
+			// create and open connection
+			HttpURLConnection connection = (HttpURLConnection) new URL(comment_url).openConnection();
+			// print URL for debugging
+			System.out.println(connection);
+			// set connection parameters
+			connection.setRequestProperty("Accept-Charset", charset);
+			connection.setRequestProperty("Content-Type", "application/json");
+			connection.setRequestProperty("Content-Length", String.valueOf(newcomment.toString().length()));
+			connection.setDoOutput(true);
+			connection.setRequestMethod("POST");
+			// get and write output stream
+			OutputStream os = connection.getOutputStream();
+			os.write(newcomment.toString().getBytes());
+			// get and print http status codes
+			status = connection.getResponseCode();
+			System.out.println(status);
+			handleHttpStatusCode(status);
+		}
+	}
+
+	private static JSONArray getLabCommentsByIssueId(int issue_id) throws MalformedURLException, IOException, JSONException {
+		// open input stream
+		String lab_issues_url = lab_URL + "/api/v3/projects/" + lab_project_id
+				+ "/issues/" + issue_id + "/notes"
+				+ "?" + "private_token=" + lab_token;
+		InputStream is = new URL(lab_issues_url).openStream();
+		try {
+			// create a buffered reader and String builder
+			BufferedReader rd = new BufferedReader(new InputStreamReader(is,
+					charset));
+			StringBuilder sb = new StringBuilder();
+			// read from input stream and append to string builder
+			int i;
+			while ((i = rd.read()) >= 0) {
+				sb.append((char) i);
+			}
+			// build json object from String and return
+			JSONArray json = new JSONArray(sb.toString());
+			return json;
+		} finally {
+			// close stream in case of exception
+			is.close();
+			System.out.println("Connection closed!");
 		}
 	}
 
