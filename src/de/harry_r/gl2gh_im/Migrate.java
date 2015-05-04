@@ -33,7 +33,8 @@ public class Migrate {
 	static JSONArray input_json, output_json = new JSONArray(),
 			edit_json = new JSONArray();
 
-	public static void main(String[] args) throws IOException, JSONException, ParseException {
+	public static void main(String[] args) throws IOException, JSONException,
+			ParseException {
 		welcomeDialog();
 		performHttpGet();
 		input_json = readJson();
@@ -102,6 +103,45 @@ public class Migrate {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	private static JSONObject performHttpPost(String url, JSONObject content)
+			throws MalformedURLException, IOException, JSONException {
+		// content type
+		String type = "application/json";
+		// create and open connection
+		HttpURLConnection connection = (HttpURLConnection) new URL(
+				url).openConnection();
+		// print URL for debugging
+		System.out.println(connection);
+		// set connection parameters
+		connection.setRequestProperty("Accept-Charset", charset);
+		connection.setRequestProperty("Content-Type", type);
+		connection.setRequestProperty("Content-Length",
+				String.valueOf(content.toString().length()));
+		connection.setDoOutput(true);
+		connection.setRequestMethod("POST");
+		// get and write output stream
+		OutputStream os = connection.getOutputStream();
+		os.write(content.toString().getBytes());
+		// get and print http status codes
+		status = connection.getResponseCode();
+		System.out.println(status);
+		handleHttpStatusCode(status);
+		// Get comments from lab an add to hub:
+		// Read returned JSON from hub (for issue number)
+		InputStream is = connection.getInputStream();
+		// create a buffered reader and String builder
+		BufferedReader rd = new BufferedReader(new InputStreamReader(is,
+				charset));
+		StringBuilder sb = new StringBuilder();
+		// read from input stream and append to string builder
+		int k = 0;
+		while ((k = rd.read()) >= 0) {
+			sb.append((char) k);
+		}
+		JSONObject created_issue = new JSONObject(sb.toString());
+		return created_issue;
 	}
 
 	public static JSONArray readJson() throws IOException, JSONException {
@@ -176,10 +216,12 @@ public class Migrate {
 
 	private static String reformatDate(String in_date) throws ParseException {
 		// reformat date
-		// Format example: 2015-04-26T22:42:04.897Z -> (removed T and Z) 2015-04-26 22:42:04.897
+		// Format example: 2015-04-26T22:42:04.897Z -> (removed T and Z)
+		// 2015-04-26 22:42:04.897
 		DateFormat json_format = new SimpleDateFormat(
 				"yyyy-MM-dd HH:mm:ss.SSS ", Locale.ENGLISH);
-		Date date = json_format.parse(in_date.replace('T', ' ').replace('Z', ' '));
+		Date date = json_format.parse(in_date.replace('T', ' ').replace('Z',
+				' '));
 		DateFormat out_format = new SimpleDateFormat("yyyy-MM-dd HH:mm",
 				Locale.ENGLISH);
 		return out_format.format(date);
@@ -191,14 +233,18 @@ public class Migrate {
 			String author_name = (String) input_json.getJSONObject(i)
 					.getJSONObject("author").get("name");
 			// get and reformat date
-			String out_date = reformatDate(input_json.getJSONObject(i).getString("created_at"));
+			String out_date = reformatDate(input_json.getJSONObject(i)
+					.getString("created_at"));
 			// get description, add data
 			String description_string = output_json.getJSONObject(i)
 					.get("body")
-					+ "\n" + "\n"
-					+ "_This issue was migrated from GitLab. Original author is " + author_name
+					+ "\n"
+					+ "\n"
+					+ "_This issue was migrated from GitLab. Original author is "
+					+ author_name
 					+ "._\n"
-					+ "_It was originally created " + out_date + "._";
+					+ "_It was originally created "
+					+ out_date + "._";
 			output_json.getJSONObject(i).put("body", description_string);
 		}
 	}
@@ -214,87 +260,46 @@ public class Migrate {
 			int issue_id = out_object.getInt("id");
 			out_object.remove("id");
 			System.out.println(out_object);
-			// content type
-			String type = "application/json";
 			// create URL
 			hub_final_url = "https://api.github.com/repos/" + hub_name + "/"
 					+ hub_repo + "/issues" + "?access_token=" + hub_token;
-			// create and open connection
-			HttpURLConnection connection = (HttpURLConnection) new URL(
-					hub_final_url).openConnection();
-			// print URL for debugging
-			System.out.println(connection);
-			// set connection parameters
-			connection.setRequestProperty("Accept-Charset", charset);
-			connection.setRequestProperty("Content-Type", type);
-			connection.setRequestProperty("Content-Length",
-					String.valueOf(out_object.toString().length()));
-			connection.setDoOutput(true);
-			connection.setRequestMethod("POST");
-			// get and write output stream
-			OutputStream os = connection.getOutputStream();
-			os.write(out_object.toString().getBytes());
-			// get and print http status codes
-			status = connection.getResponseCode();
-			System.out.println(status);
-			handleHttpStatusCode(status);
-			// Get comments from lab an add to hub:
-			// Read returned JSON from hub (for issue number)
-			InputStream is = connection.getInputStream();
-			// create a buffered reader and String builder
-			BufferedReader rd = new BufferedReader(new InputStreamReader(is, charset));
-			StringBuilder sb = new StringBuilder();
-			// read from input stream and append to string builder
-			int k = 0;
-			while ((k = rd.read()) >= 0) {
-				sb.append((char) k);
-			}
-			JSONObject created_issue = new JSONObject(sb.toString());
+			JSONObject created_issue = performHttpPost(hub_final_url, out_object);
 			int created_issue_id = created_issue.getInt("number");
-			createHubCommentsonIssue(created_issue_id, getLabCommentsByIssueId(issue_id));
+			createHubCommentsonIssue(created_issue_id,
+					getLabCommentsByIssueId(issue_id));
 		}
 	}
 
-	private static void createHubCommentsonIssue(int id, JSONArray comments) throws JSONException, ParseException, MalformedURLException, IOException {
+	private static void createHubCommentsonIssue(int id, JSONArray comments)
+			throws JSONException, ParseException, MalformedURLException,
+			IOException {
 		for (int i = 0; i < comments.length(); i++) {
-			String newcomment_string = comments.getJSONObject(i).getString("body")
+			String newcomment_string = comments.getJSONObject(i).getString(
+					"body")
 					+ "\n\n"
-					+ "_This comment was migrated from GitLab. It was originally posted on " 
-					+ reformatDate(comments.getJSONObject(i).getString("created_at"))
+					+ "_This comment was migrated from GitLab. It was originally posted on "
+					+ reformatDate(comments.getJSONObject(i).getString(
+							"created_at"))
 					+ " by "
-					+ comments.getJSONObject(i).getJSONObject("author").getString("name") 
-					+ "._";
+					+ comments.getJSONObject(i).getJSONObject("author")
+							.getString("name") + "._";
 			JSONObject newcomment = new JSONObject();
 			newcomment.put("body", newcomment_string);
 
 			// create URL
-			String comment_url = "https://api.github.com/repos/" + hub_name + "/"
-					+ hub_repo + "/issues/" + id + "/comments" + "?access_token=" + hub_token;
-			// create and open connection
-			HttpURLConnection connection = (HttpURLConnection) new URL(comment_url).openConnection();
-			// print URL for debugging
-			System.out.println(connection);
-			// set connection parameters
-			connection.setRequestProperty("Accept-Charset", charset);
-			connection.setRequestProperty("Content-Type", "application/json");
-			connection.setRequestProperty("Content-Length", String.valueOf(newcomment.toString().length()));
-			connection.setDoOutput(true);
-			connection.setRequestMethod("POST");
-			// get and write output stream
-			OutputStream os = connection.getOutputStream();
-			os.write(newcomment.toString().getBytes());
-			// get and print http status codes
-			status = connection.getResponseCode();
-			System.out.println(status);
-			handleHttpStatusCode(status);
+			String comment_url = "https://api.github.com/repos/" + hub_name
+					+ "/" + hub_repo + "/issues/" + id + "/comments"
+					+ "?access_token=" + hub_token;
+			performHttpPost(comment_url, newcomment);
 		}
 	}
 
-	private static JSONArray getLabCommentsByIssueId(int issue_id) throws MalformedURLException, IOException, JSONException {
+	private static JSONArray getLabCommentsByIssueId(int issue_id)
+			throws MalformedURLException, IOException, JSONException {
 		// open input stream
 		String lab_issues_url = lab_URL + "/api/v3/projects/" + lab_project_id
-				+ "/issues/" + issue_id + "/notes"
-				+ "?" + "private_token=" + lab_token;
+				+ "/issues/" + issue_id + "/notes" + "?" + "private_token="
+				+ lab_token;
 		InputStream is = new URL(lab_issues_url).openStream();
 		try {
 			// create a buffered reader and String builder
@@ -340,25 +345,7 @@ public class Migrate {
 			hub_final_url = "https://api.github.com/repos/" + hub_name + "/"
 					+ hub_repo + "/issues/" + (i + 1) + "?access_token="
 					+ hub_token;
-			// create and open connection
-			HttpURLConnection connection = (HttpURLConnection) new URL(
-					hub_final_url).openConnection();
-			// print URL for debugging
-			System.out.println(connection);
-			// set connection parameters
-			connection.setRequestProperty("Accept-Charset", charset);
-			connection.setRequestProperty("Content-Type", type);
-			connection.setRequestProperty("Content-Length",
-					String.valueOf(edit_object.toString().length()));
-			connection.setDoOutput(true);
-			connection.setRequestMethod("POST");
-			// get and write output stream
-			OutputStream os = connection.getOutputStream();
-			os.write(edit_object.toString().getBytes());
-			// get and print http status codes
-			status = connection.getResponseCode();
-			System.out.println(status);
-			handleHttpStatusCode(status);
+			performHttpPost(hub_final_url, edit_object);
 		}
 	}
 }
