@@ -5,7 +5,7 @@ repositories {
 }
 
 dependencies {
-	compile 'org.json:json:20090211'
+	compile 'org.json:json:20141113'
 }
 
 jar {
