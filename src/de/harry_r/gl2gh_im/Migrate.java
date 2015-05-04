@@ -48,7 +48,7 @@ public class Migrate {
 		editIssues();
 	}
 
-	public static void welcomeDialog() {
+	private static void welcomeDialog() {
 		// send welcome message
 		System.out.println("Welcome at GitLab to GitHub issue migrating!");
 		// read user inputs
@@ -86,7 +86,7 @@ public class Migrate {
 	}
 
 	// authenticate with private token
-	public static void performHttpGet() {
+	private static void performHttpGet() {
 		try {
 			// open connection
 			lab_final_url = lab_URL + "/api/v3/projects/" + lab_project_id
@@ -144,7 +144,7 @@ public class Migrate {
 		return created_issue;
 	}
 
-	public static JSONArray readJson() throws IOException, JSONException {
+	private static JSONArray readJson() throws IOException, JSONException {
 		// open input stream
 		InputStream is = new URL(lab_final_url).openStream();
 		try {
