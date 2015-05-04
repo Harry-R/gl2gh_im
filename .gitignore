@@ -36,3 +36,6 @@ local.properties
 
 # TeXlipse plugin
 .texlipse
+
+#ignore gradle builds
+build/
