@@ -2,7 +2,7 @@ language: java
 deploy:
   provider: releases
   api_key:
-    secure: R3BawFLhTpd6rOzGDVVKPKazvszSFhfpQcbVor35BwjhH9MZb7O8YWQSpVND6HYUvywNxAq6JzNZwOUWV+N+JcU5/wAZwGGfkTqeaEW4bhz3wZcz/YrJjkHnG3V01/Jt4KxS4zrr7f+BN2edJZ7HGMwx52Gu2lQaQYW43td9FCo=
+    secure: "exricN6q+QIodctLV+8fyZKfPZspRtBpO50qstsPYWreHQo/WPJnO2LbI+y3AHOZRdLrfC2UdFdaK7fXT2RX3I7DbMxMZm1E1rVYXjwU9czQW9NUgvJEQOaVg2k3sBs0y4AxqaEPk34xAy1EWUmx7//H2cCHg3zCaYYcJfjpQsI="
   file: build/libs/gl2gh_im.jar
   skip_cleanup: true
   on:

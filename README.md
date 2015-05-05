@@ -2,7 +2,7 @@
 
 This is a project for migrating issues from GitLab to GitHub.
 
-[![Build Status](https://travis-ci.org/rleh/gl2gh_im.svg?branch=master)](https://travis-ci.org/rleh/gl2gh_im)
+[![Build Status](https://travis-ci.org/Harry-R/gl2gh_im.svg?branch=master)](https://travis-ci.org/Harry-R/gl2gh_im)
 
 
 ## Build
