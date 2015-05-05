@@ -1,0 +1,16 @@
+apply plugin: 'java'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile 'org.json:json:20141113'
+}
+
+jar {
+	from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+	manifest {
+		attributes 'Main-Class': 'de.harry_r.gl2gh_im.Migrate'
+	}
+}

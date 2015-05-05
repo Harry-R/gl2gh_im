@@ -1,0 +1,9 @@
+language: java
+deploy:
+  provider: releases
+  api_key:
+    secure: R3BawFLhTpd6rOzGDVVKPKazvszSFhfpQcbVor35BwjhH9MZb7O8YWQSpVND6HYUvywNxAq6JzNZwOUWV+N+JcU5/wAZwGGfkTqeaEW4bhz3wZcz/YrJjkHnG3V01/Jt4KxS4zrr7f+BN2edJZ7HGMwx52Gu2lQaQYW43td9FCo=
+  file: build/libs/gl2gh_im.jar
+  skip_cleanup: true
+  on:
+    tags: true
